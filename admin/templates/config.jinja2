@@ -1,0 +1,499 @@
+{% extends "admin/layout/default.jinja2" %}
+{% block javascript %}
+<script
+    src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js?v={{configs.basic.version}}"></script>
+<script
+    src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/additional-methods.min.js?v={{configs.basic.version}}"></script>
+
+
+<script>
+    var currentButton = undefined;
+    $(".btn-submit").on('click', function (event) {
+        currentButton = $(this)
+    });
+    $("#config_save_form").validate({
+        submitHandler: function (form) {
+            var buttonText = currentButton.text();
+            currentButton.prop("disabled", true).html("{{_('Please wait')}}");
+            $("#app-loading-indicator").removeClass("opacity-0");
+            var formData = $('#config_save_form').serializeArray();
+            var jsonData = {};
+            formData.forEach(function (item) { jsonData[item.name] = item.value; });
+            var type = currentButton.data('type');
+
+            $.ajax({
+                type: "POST",
+                url: "/admin/third/payment/config",
+                data: JSON.stringify(jsonData),
+                contentType: 'application/json;charset=utf-8',
+                processData: false,
+                success: function (data) {
+                    toastr.options.timeOut = 200;
+                    toastr.options.onHidden = function () {
+                        currentButton.prop("disabled", false).html(buttonText);
+                        // window.location.reload();
+                    }
+                    toastr.success(_('Submit Successfully'));
+                },
+                error: function (xhr, status, error) {
+                    let message = xhr.responseJSON.message;
+                    toastr.error(message);
+                    currentButton.prop("disabled", false);
+                },
+                complete: function (xhr, textStatus) {
+                    $("#app-loading-indicator").addClass("opacity-0");
+                },
+            });
+
+            return false;
+        },
+        errorElement: "div",
+        errorPlacement: function (error, element) {
+            $(element).removeClass('is-valid');
+            $(element).addClass('is-invalid');
+            error.addClass("mt-1 p-1 text-warning");
+            if (element.prop("type") === "checkbox" || element.parent().find('button').length > 0) {
+                error.insertAfter(element.parent());
+            } else {
+                error.insertAfter(element);
+            }
+        },
+        success: function (label, element) {
+            $(element).removeClass('is-invalid');
+            $(element).addClass('is-valid mb-2');
+            $(label).addClass('d-none');
+        },
+    });
+
+    document.querySelectorAll("input[name='row[wechat][mode]']").forEach(function (i, j) {
+        i.addEventListener("click", function () {
+            document.querySelectorAll("#tabs-wechat div[data-type]").forEach(function (m, n) {
+                m.classList.add("d-none");
+            });
+            document.querySelectorAll("#tabs-wechat div[data-type='" + this.value + "']").forEach(function (m, n) {
+                m.classList.remove("d-none");
+            });
+        });
+    });
+    document.querySelectorAll("input[name='row[alipay][mode]']").forEach(function (i, j) {
+        i.addEventListener("click", function () {
+            document.querySelectorAll("#tabs-alipay [data-mode]").forEach(function (m, n) {
+                m.classList.add("d-none");
+            });
+            document.querySelectorAll("#tabs-alipay [data-mode='" + this.value + "']").forEach(function (m, n) {
+                m.classList.remove("d-none");
+            });
+        });
+    });
+
+    $(document).on('change', '.upload_pem', function (e) {
+        const fileInput = $(this);
+        filename = fileInput.data("filename");
+        var files = fileInput[0].files;
+        if (files.length > 0) {
+            var formData = new FormData();
+            formData.append('file', files[0]);
+            formData.append('filename', filename);
+            $.ajax({
+                url: '/admin/third/pay/upload',
+                type: 'POST',
+                data: formData,
+                contentType: false,
+                processData: false,
+                success: function (response) {
+                    $("#" + filename).val(response.data)
+                    fileInput.val('');
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    toastr.error('文件上传失败');
+                    fileInput.val('');
+                }
+            });
+        } else {
+            toastr.error('请先选择一个文件！');
+        }
+    });
+</script>
+{% endblock javascript %}
+{% block content %}
+<!-- Page body -->
+<div class="page-body pt-6888">
+    <div class="container-xl">
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <div class="card">
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs" data-bs-toggle="tabs">
+                            <li class="nav-item">
+                                <a href="#tabs-wechat" class="nav-link active" data-bs-toggle="tab">{{_('Wechat')}}</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="#tabs-alipay" class="nav-link" data-bs-toggle="tab">{{_('Alipay')}}</a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <form id="config_save_form" method="post" action>
+                            <div class="tab-content">
+                                <div class="tab-pane active show" id="tabs-wechat">
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">APP的app_id</label>
+                                        <input type="text" name="row[wechat][appid]"
+                                            value="{{payment_config.wechat.appid}}" class="form-control" data-rule
+                                            data-tip="APP应用中支付时使用" required />
+                                    </div>
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">公众号的app_id</label>
+
+                                        <input type="text" name="row[wechat][app_id]"
+                                            value="{{payment_config.wechat.app_id}}" class="form-control" data-rule
+                                            data-tip="公众号中支付时使用" required />
+
+                                    </div>
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">公众号的app_secret</label>
+
+                                        <input type="text" name="row[wechat][app_secret]"
+                                            value="{{payment_config.wechat.app_secret}}" class="form-control" data-rule
+                                            data-tip="仅在需要获取Openid时使用" required />
+
+                                    </div>
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">小程序的app_id</label>
+
+                                        <input type="text" name="row[wechat][miniapp_id]"
+                                            value="{{payment_config.wechat.miniapp_id}}" class="form-control" data-rule
+                                            data-tip="仅在小程序支付时使用" required />
+
+                                    </div>
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">微信支付商户号ID</label>
+
+                                        <input type="text" name="row[wechat][mch_id]"
+                                            value="{{payment_config.wechat.mch_id}}" class="form-control" data-rule
+                                            data-tip required />
+                                    </div>
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">微信支付商户的密钥</label>
+                                        <input type="text" name="row[wechat][private_key]"
+                                            value="{{payment_config.wechat.private_key}}" class="form-control" data-rule
+                                            data-tip required />
+
+                                    </div>
+
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">商户证书序列号(v3)</label>
+
+                                        <input type="text" name="row[wechat][cert_serial_no]"
+                                            value="{{payment_config.wechat.cert_serial_no}}" class="form-control"
+                                            data-rule data-tip required />
+                                    </div>
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">微信支付商户的APIV3密钥(v3)</label>
+                                        <input type="text" name="row[wechat][api_v3_key]"
+                                            value="{{payment_config.wechat.api_v3_key}}" class="form-control" data-rule
+                                            data-tip required />
+                                    </div>
+
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">支付模式 </label>
+
+                                        <div class="radio">
+                                            <label for="row[wechat][mode]-normal">
+                                                <input id="row[wechat][mode]-normal" name="row[wechat][mode]"
+                                                    type="radio" value="normal" {% if
+                                                    payment_config.wechat.mode=='normal' %}checked{% endif %} />
+                                                正式环境
+                                            </label>
+                                            <label for="row[wechat][mode]-dev">
+                                                <input id="row[wechat][mode]-dev" name="row[wechat][mode]" type="radio"
+                                                    value="dev" {% if payment_config.wechat.mode=='dev' %}checked{%
+                                                    endif %} />
+                                                沙箱环境
+                                            </label>
+                                            <label for="row[wechat][mode]-service">
+                                                <input id="row[wechat][mode]-service" name="row[wechat][mode]"
+                                                    type="radio" value="service" {% if
+                                                    payment_config.wechat.mode=='service' %}checked{% endif %} />
+                                                服务商模式
+                                            </label>
+                                        </div>
+
+                                    </div>
+                                    <div data-type="service" class="mb-[20px] d-none">
+                                        <label class="form-label">子商户商户号ID</label>
+                                        <input type="text" name="row[wechat][sub_mch_id]"
+                                            value="{{payment_config.wechat.sub_mch_id}}" class="form-control" data-rule
+                                            data-tip="如果未用到子商户，请勿填写" required />
+                                    </div>
+
+                                    <div data-type="service" class="mb-[20px] d-none">
+                                        <label class="form-label">子商户APP的app_id</label>
+
+                                        <input type="text" name="row[wechat][sub_appid]"
+                                            value="{{payment_config.wechat.sub_appid}}" class="form-control" data-rule
+                                            data-tip="如果未用到子商户，请勿填写" required />
+
+                                    </div>
+                                    <div data-type="service" class="mb-[20px] d-none">
+                                        <label class="form-label">子商户公众号的app_id</label>
+
+                                        <input type="text" name="row[wechat][sub_app_id]"
+                                            value="{{payment_config.wechat.sub_app_id}}" class="form-control" data-rule
+                                            data-tip="如果未用到子商户，请勿填写" required />
+
+                                    </div>
+                                    <div data-type="service" class="mb-[20px] d-none">
+                                        <label class="form-label">子商户小程序的app_id</label>
+                                        <input type="text" name="row[wechat][sub_miniapp_id]"
+                                            value="{{payment_config.wechat.sub_miniapp_id}}" class="form-control"
+                                            data-rule data-tip="如果未用到子商户，请勿填写" required />
+
+                                    </div>
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">回调通知地址</label>
+
+                                        <input type="text" name="row[wechat][notify_url]"
+                                            value="{{payment_config.wechat.notify_url}}" class="form-control" data-rule
+                                            data-tip="请勿随意修改，实际以逻辑代码中请求的为准" required />
+
+                                    </div>
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">微信支付API证书cert</label>
+
+                                        <input class="form-control upload_pem w-64 mb-[10px]" type="file"
+                                            data-allowed-extensions=".pem" data-upload-type="file"
+                                            data-filename="wechat_apiclient_cert" />
+                                        <input class="form-control" type="text" id="wechat_apiclient_cert"
+                                            name="row[wechat][cert_client]"
+                                            value="{{payment_config.wechat.cert_client}}" />
+
+                                        <div class="mt-2">
+                                            <span class="msg-box n-right" for="c-cert_client">
+                                                <span role="alert" class="msg-wrap n-tip">
+                                                    <span class="n-icon"></span>
+                                                    <span class="n-msg">可选,
+                                                        仅在退款、红包等情况时需要用到.</span>
+                                                </span>
+                                            </span>
+                                            <a href="https://pay.weixin.qq.com" target="_blank">
+                                                <i class="ti ti-info-circle"></i>
+                                                如何获取微信支付API证书?
+                                            </a>
+                                        </div>
+
+                                    </div>
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">微信支付API证书key</label>
+
+                                        <input class="form-control upload_pem w-64 mb-[10px]" type="file"
+                                            data-filename="wechat_apiclient_key" data-upload-type="file"
+                                            placeholder="可选, 仅在退款、红包等情况时需要用到" />
+                                        <input type="text" class="form-control" id="wechat_apiclient_key"
+                                            name="row[wechat][cert_key]" value="{{payment_config.wechat.cert_key}}" />
+
+                                        <div class="mt-2">可选, 仅在退款、红包等情况时需要用到
+                                            <a href="https://pay.weixin.qq.com" target="_blank">
+                                                <i class="ti ti-info-circle">
+                                                </i>
+                                                如何获取微信支付API证书?
+                                            </a>
+                                        </div>
+
+                                    </div>
+
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">记录日志</label>
+                                        <td>
+                                            <div class="row">
+                                                <div class="col-sm-8 col-xs-12">
+                                                    <div class="radio">
+                                                        <label for="row[wechat][log]-1">
+                                                            <input id="row[wechat][log]-1" name="row[wechat][log]"
+                                                                type="radio" value="1" {% if
+                                                                payment_config.wechat.log=='1' %}checked{% endif %} />
+                                                            开启
+                                                        </label>
+                                                        <label for="row[wechat][log]-0">
+                                                            <input id="row[wechat][log]-0" name="row[wechat][log]"
+                                                                type="radio" value="0" {% if
+                                                                payment_config.wechat.log=='0' %}checked{% endif %} />
+                                                            关闭
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-sm-4"></div>
+                                            </div>
+                                        </td>
+                                    </div>
+
+                                </div>
+                                <div class="tab-pane" id="tabs-alipay">
+
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">支付模式</label>
+
+                                        <div class="row">
+                                            <div class="col-sm-12 col-xs-12">
+                                                <div class="radio">
+                                                    <label for="row[alipay][mode]-normal">
+                                                        <input id="row[alipay][mode]-normal" name="row[alipay][mode]"
+                                                            type="radio" value="normal" {% if
+                                                            payment_config.alipay.mode=='normal' %}checked{% endif %} />
+                                                        正式环境
+                                                    </label>
+                                                    <label for="row[alipay][mode]-dev">
+                                                        <input id="row[alipay][mode]-dev" name="row[alipay][mode]"
+                                                            type="radio" value="dev" {% if
+                                                            payment_config.alipay.mode=='dev' %}checked{% endif %} />
+                                                        沙箱环境
+                                                    </label>
+                                                </div>
+                                                <div style="margin-top:5px;" data-mode="dev" class="text-muted d-none">
+                                                    <i class="ti ti-info-circle"></i>
+                                                    如果使用沙箱环境，务必使用沙箱的app_id和沙箱证书，以及使用沙箱账号进行测试。<br>
+                                                    沙箱环境：<a href="https://openhome.alipay.com/develop/sandbox/app"
+                                                        target="_blank">https://openhome.alipay.com/develop/sandbox/app</a>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">应用ID(app_id)</label>
+                                        <input type="text" name="row[alipay][app_id]"
+                                            value="{{payment_config.alipay.app_id}}" class="form-control" data-rule
+                                            data-tip required />
+                                    </div>
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">回调通知地址</label>
+                                        <input type="text" name="row[alipay][notify_url]"
+                                            value="{{payment_config.alipay.notify_url}}" class="form-control" data-rule
+                                            data-tip="请勿随意修改，实际以逻辑代码中请求的为准" required />
+                                    </div>
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">支付跳转地址</label>
+                                        <input type="text" name="row[alipay][return_url]"
+                                            value="{{payment_config.alipay.return_url}}" class="form-control" data-rule
+                                            data-tip="请勿随意修改，实际以逻辑代码中请求的为准" required />
+                                    </div>
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">应用私钥(private_key)</label>
+
+                                        <textarea name="row[alipay][private_key]" class="form-control" rows="10"
+                                            data-rule required>{{payment_config.alipay.private_key}}</textarea>
+                                        <div style="margin-top:5px;"><a
+                                                href="https://opensupport.alipay.com/support/helpcenter/207/201602469554"
+                                                target="_blank"><i class="ti ti-info-circle"></i>
+                                                如何获取应用私钥?</a></div>
+
+                                    </div>
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">签名方式</label>
+                                        <div class="radio">
+                                            <label for="row[alipay][signtype]-publickey">
+                                                <input id="row[alipay][signtype]-publickey" name="row[alipay][signtype]"
+                                                    checked type="radio" value="publickey" {% if
+                                                    payment_config.alipay.signtype=='publickey' %}checked{% endif %} />
+                                                公钥
+                                            </label>
+                                            <label for="row[alipay][signtype]-cert">
+                                                <input id="row[alipay][signtype]-cert" name="row[alipay][signtype]"
+                                                    type="radio" value="cert" {% if
+                                                    payment_config.alipay.signtype=='cert' %}checked{% endif %} />
+                                                公钥证书
+                                            </label>
+                                        </div>
+
+                                        <div style="margin-top:5px;" class="text-muted">
+                                            <i class="ti ti-info-circle"></i>
+                                            如果要使用转账、提现功能，则必须使用公钥证书
+                                        </div>
+                                    </div>
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">支付宝公钥路径(alipay_public_key)</label>
+                                        <textarea id="c-ali_public_key" class="form-control" rows="10"
+                                            name="row[alipay][ali_public_key]"
+                                            placeholder="公钥请直接粘贴，公钥证书请点击右侧的上传">{{payment_config.alipay.ali_public_key}}</textarea>
+                                        <div class="mt-2">
+                                            <a href="https://opensupport.alipay.com/support/helpcenter/271/201602474998"
+                                                target="_blank">
+                                                <i class="ti ti-info-circle"></i>
+                                                如何获取支付宝公钥证书?
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">应用公钥证书路径(app_cert_public_key)</label>
+
+                                        <input class="form-control upload_pem w-64 mb-[10px]" type="file"
+                                            data-filename="alipay_app_cert_public_key" data-upload-type="file"
+                                            placeholder=" " />
+                                        <input type="text" class="form-control" id="alipay_app_cert_public_key"
+                                            name="row[alipay][app_cert_public_key]"
+                                            value="{{payment_config.alipay.app_cert_public_key}}" />
+
+                                        <div class="mt-2"><a
+                                                href="https://opensupport.alipay.com/support/helpcenter/271/201602474998"
+                                                target="_blank"><i class="ti ti-info-circle"></i>
+                                                如何获取应用公钥证书?</a></div>
+                                    </div>
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">支付宝根证书路径(alipay_root_cert)</label>
+
+                                        <input class="form-control upload_pem w-64 mb-[10px]" type="file"
+                                            data-filename="alipay_root_cert" data-upload-type="file" placeholder=" " />
+                                        <input type="text" class="form-control" id="alipay_root_cert"
+                                            name="row[alipay][alipay_root_cert]]"
+                                            value="{{payment_config.alipay.alipay_root_cert}}" />
+
+                                        <div style="margin-top:5px;">
+                                            <a href="https://opensupport.alipay.com/support/helpcenter/271/201602474998"
+                                                target="_blank">
+                                                <i class="ti ti-info-circle"></i>
+                                                如何获取支付宝证书?
+                                            </a>
+                                        </div>
+
+                                    </div>
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">记录日志</label>
+                                        <label for="row[alipay][log]-1">
+                                            <input id="row[alipay][log]-1" name="row[alipay][log]" type="radio"
+                                                value="1" {% if payment_config.alipay.log=='1' %}checked{% endif %} />
+                                            开启
+                                        </label>
+                                        <label for="row[alipay][log]-0">
+                                            <input id="row[alipay][log]-0" name="row[alipay][log]" type="radio"
+                                                value="0" {% if payment_config.alipay.log=='0' %}checked{% endif %} />
+                                            关闭
+                                        </label>
+                                    </div>
+                                    <div class="mb-[20px]">
+                                        <label class="form-label">PC端使用扫码支付</label>
+                                        <label for="row[alipay][scanpay]-1">
+                                            <input id="row[alipay][scanpay]-1" name="row[alipay][scanpay]" type="radio"
+                                                value="1" {% if payment_config.alipay.scanpay=='1' %}checked{% endif
+                                                %} />
+                                            开启</label>
+                                        <label for="row[alipay][scanpay]-0">
+                                            <input id="row[alipay][scanpay]-0" name="row[alipay][scanpay]" type="radio"
+                                                value="0" {% if payment_config.alipay.scanpay=='0' %}checked{% endif
+                                                %} />
+                                            关闭
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" form="config_save_form" data-type="submit"
+                                class="btn btn-primary  btn-submit !py-3 w-100">
+                                {{_('Submit')}}
+                            </button>
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>{% endblock content %}

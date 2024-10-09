@@ -1,0 +1,41 @@
+{
+  "name": "第三方支付",
+  "author": "Zhanor",
+  "info":{
+      "title": "第三方支付",
+      "author": "Zhanor",
+      "uuid": "third_payment",
+      "description": "第三方支付，支持支付宝，微信",
+      "version": "1.0.0",
+      "downloads": 0,
+      "download_url": "",
+      "md5_hash": "",
+      "price": "0.00",
+      "paid": "0",
+      "installed": "0",
+      "enabled": "0",
+      "setting_menu": [],
+      "created_at": "2024-09-01",
+      "updated_at": "2024-09-01"
+  },
+  
+  "admin_menu": [
+    {
+      "id": 6,
+      "type": "menu",
+      "pid": 0,
+      "name": "third_payment",
+      "url_path": "/admin/third/payment/config",
+      "title": "第三方支付",
+      "description": "ThirdPayment",
+      "icon": "ti ti-separator-vertical",
+      "extend": "",
+      "created_at": "2024-09-29 09:32:00",
+      "updated_at": "2024-09-29 09:32:00",
+      "weigh": 6,
+      "status": "normal"
+    }
+  ],
+  "user_menu": [],
+  "setting":{}
+}
